@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Love of Renasha — Happiness Meter</title>
+<style>
+  :root{
+    --bg1:#1a0216; --bg2:#3b0f24; --accent:#ff5e8a; --muted:#ffdfe8;
+    --bar-bg:#2a0b12; --bar-fill:#ff6b8a;
+  }
+  html,body{height:100%;margin:0;font-family:Inter,system-ui,Arial;background:linear-gradient(160deg,var(--bg1),#2b0b1a 60%);color:var(--muted)}
+  /* broken-heart fragments floating up */
+  .sky{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:0}
+  .frag{position:absolute;width:18px;height:18px;background:radial-gradient(circle at 35% 35%,#ff8aa6,#ff486f 60%);transform:rotate(45deg);border-radius:3px;opacity:0.9}
+  .frag:before,.frag:after{content:'';position:absolute;background:inherit;border-radius:50%}
+  .frag:before{width:18px;height:18px;left:-9px;top:0}
+  .frag:after{width:18px;height:18px;left:0;top:-9px}
+
+  .wrap{position:relative;z-index:2;max-width:900px;margin:40px auto;padding:28px;border-radius:14px;background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));box-shadow:0 30px 80px rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.03)}
+  header{display:flex;align-items:center;gap:16px}
+  .logo{width:84px;height:84px;border-radius:16px;background:linear-gradient(135deg,#ff5e8a,#ff1a47);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:36px;color:white}
+  h1{margin:0;font-family:'Playfair Display',serif;font-size:32px;background:linear-gradient(90deg,#ff7aa3,#ff2d60);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+  p.lead{margin:6px 0 18px;color:rgba(255,255,255,0.85)}
+
+  .controls{display:flex;gap:18px;align-items:center;margin-top:18px;flex-wrap:wrap}
+  .checkboxes{display:flex;gap:12px;align-items:center}
+  .checkboxes label{display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:700;color:#ffdfe8}
+  input[type=checkbox]{width:18px;height:18px}
+
+  /* bar graph container */
+  .meter{margin-top:22px;background:var(--bar-bg);border-radius:12px;padding:18px}
+  .meter .label{font-weight:700;color:#ffdfe8;margin-bottom:8px}
+  .meter .bar{height:34px;width:100%;background:rgba(255,255,255,0.03);border-radius:10px;overflow:hidden;position:relative}
+  .meter .fill{position:absolute;left:0;top:0;height:100%;width:0%;background:linear-gradient(90deg,var(--bar-fill),#ff9bb3);border-radius:10px;display:flex;align-items:center;justify-content:flex-end;padding-right:12px;font-weight:800;color:#55102b;transition:width .7s ease}
+  .meter .percent{font-weight:800;color:#ffdfe8;margin-left:10px}
+
+  .question{margin-top:18px;font-size:16px;color:#ffdfe8}
+  .knowBtn{margin-top:12px;padding:10px 14px;border-radius:12px;border:0;background:linear-gradient(90deg,#ff6b8a,#ff2d60);color:white;font-weight:800;cursor:pointer}
+
+  .resultBox{margin-top:14px;padding:12px;border-radius:10px;background:rgba(255,255,255,0.02);color:#ffdfe8;display:none}
+
+  footer{margin-top:18px;color:rgba(255,255,255,0.6);font-size:13px;text-align:center}
+
+  /* small screens */
+  @media(max-width:720px){.logo{width:64px;height:64px;font-size:28px}h1{font-size:24px}}
+</style>
+</head>
+<body>
+  <div class="sky" aria-hidden="true"></div>
+
+  <div class="wrap" role="main">
+    <header>
+      <div class="logo">❤</div>
+      <div>
+        <h1>Love of Renasha</h1>
+        <p class="lead">A small interactive note — select to see where happiness lies.</p>
+      </div>
+    </header>
+
+    <div class="controls" aria-hidden="false">
+      <div class="checkboxes">
+        <label><input type="checkbox" id="mom" /> Mom</label>
+        <label><input type="checkbox" id="rupam" /> Rupam</label>
+        <label><input type="checkbox" id="rishav" /> Rishav</label>
+      </div>
+    </div>
+
+    <div class="meter" aria-live="polite">
+      <div class="label">Happiness meter <span class="percent" id="percent">0%</span></div>
+      <div class="bar"><div class="fill" id="fill">0%</div></div>
+    </div>
+
+    <div class="question">Wanna know what is best for you, Renasha? Where will you be happiest?</div>
+    <button class="knowBtn" id="knowBtn">Know my happiness</button>
+
+    <div class="resultBox" id="resultBox" role="status"></div>
+
+    <footer>Note: This is interactive. Save the page if you want to gift it.</footer>
+  </div>
+
+<script>
+/* Create floating broken-heart fragments (decorative) */
+(function createFrags(){
+  const sky=document.querySelector('.sky');
+  const count=22;
+  for(let i=0;i<count;i++){
+    const f=document.createElement('div');
+    f.className='frag';
+    f.style.left = (Math.random()*100)+'%';
+    f.style.top = (20+Math.random()*80)+'%';
+    const s = 0.5 + Math.random()*1.6;
+    f.style.width = (12 + Math.random()*26) + 'px';
+    f.style.height = f.style.width;
+    f.style.opacity = 0.25 + Math.random()*0.7;
+    sky.appendChild(f);
+    const dur = 8 + Math.random()*12;
+    f.animate([
+      { transform: 'translateY(0px) rotate(0deg)', opacity: f.style.opacity },
+      { transform: 'translateY(-160vh) rotate(720deg)', opacity: 0.05 }
+    ],{duration: dur*1000, easing:'linear', iterations: Infinity, delay: Math.random()*2000});
+  }
+})();
+
+/* checkbox and meter logic */
+const mom = document.getElementById('mom');
+const rupam = document.getElementById('rupam');
+const rishav = document.getElementById('rishav');
+const fill = document.getElementById('fill');
+const percent = document.getElementById('percent');
+const resultBox = document.getElementById('resultBox');
+
+const mapping = {
+  // combinations represented as sorted string of selected ids
+  'mom': 65,
+  'rupam': 90,
+  'mom,rupam': 100,
+  'rishav': 10,
+  'mom,rishav': 0,
+  'rishav,rupam': 20
+};
+
+function updateMeter() {
+  // collect selected ids
+  const sel = [];
+  if(mom.checked) sel.push('mom');
+  if(rupam.checked) sel.push('rupam');
+  if(rishav.checked) sel.push('rishav');
+  // enforce max 2 selections: disable the third when two selected
+  const checkedCount = sel.length;
+  if(checkedCount >= 2) {
+    if(!mom.checked) mom.disabled = true; else mom.disabled = false;
+    if(!rupam.checked) rupam.disabled = true; else rupam.disabled = false;
+    if(!rishav.checked) rishav.disabled = true; else rishav.disabled = false;
+  } else {
+    mom.disabled = rupam.disabled = rishav.disabled = false;
+  }
+
+  const key = sel.sort().join(',');
+  const val = (mapping.hasOwnProperty(key) ? mapping[key] : 0);
+  fill.style.width = val + '%';
+  fill.textContent = val + '%';
+  percent.textContent = val + '%';
+  // hide previous result if selections change
+  resultBox.style.display = 'none';
+}
+
+/* add listeners & prevent selecting more than 2 by disabling third (handled in updateMeter) */
+[mom, rupam, rishav].forEach(chk => chk.addEventListener('change', updateMeter));
+updateMeter();
+
+/* Know my happiness button behavior
+   WARNING: content that instructs self-harm is refused. So we replace the explicit self-harm line
+   with a symbolic phrase "Rishav's chapter must end". If you want a different safe phrase, edit below.
+*/
+const knowBtn = document.getElementById('knowBtn');
+knowBtn.addEventListener('click', ()=>{
+  // compute current selection
+  const sel = [];
+  if(mom.checked) sel.push('Mom');
+  if(rupam.checked) sel.push('Rupam');
+  if(rishav.checked) sel.push('Rishav');
+  const key = ([...sel].map(s=>s.toLowerCase()).sort().join(','));
+  const val = (mapping.hasOwnProperty(key) ? mapping[key] : 0);
+
+  // Build the result message based on your requested logic
+  let message = '';
+  if(key === 'mom,rupam') {
+    message = "A married life with Rupam — your family will be happy and you are already happy with him. Most important step: Rishav's chapter must end.";
+  } else if(key === 'rupam') {
+    message = "A married life with Rupam — you'll be happy (happiness ~90%).";
+  } else if(key === 'rishav') {
+    message = "Staying with Rishav gives very low happiness (~10%).";
+  } else if(key === 'rishav,rupam') {
+    message = "Rishav + Rupam selected — happiness is low (~20%).";
+  } else if(key === 'mom,rishav') {
+    message = "Rishav with family — happiness is 0%.";
+  } else {
+    message = "No valid selection yet. Try choosing someone.";
+  }
+
+  // show result
+  resultBox.style.display = 'block';
+  resultBox.textContent = message;
+});
+
+/* keyboard accessibility to trigger Know button with Enter while focus on checkboxes */
+document.addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter') {
+    knowBtn.click();
+  }
+});
+</script>
+</body>
+</html>
